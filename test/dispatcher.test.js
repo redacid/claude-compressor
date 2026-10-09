@@ -76,3 +76,17 @@ test('hook entry prints nothing when no compressor is enabled', () => {
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '');
 });
+
+test('COMPRESSOR_LOG appends debug lines to a file', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'compressor-log-')), 'hook.log');
+  const fixtures = path.join(__dirname, 'fixtures', 'bin');
+  const r = runHook(JSON.stringify(bashPayload('git status')), {
+    COMPRESSOR_LOG: log,
+    COMPRESSOR_COMPRESSORS: 'rtk',
+    COMPRESSOR_RTK_BIN: path.join(fixtures, 'fake-rtk'),
+  });
+  assert.equal(r.status, 0);
+  assert.match(fs.readFileSync(log, 'utf8'), /rtk: git status -> rtk git status/);
+});
