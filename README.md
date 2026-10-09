@@ -46,8 +46,8 @@ claude plugin marketplace add /path/to/compressor
 claude plugin install compressor@redacid
 ```
 
-Both sources register a marketplace named `redacid`, so remove one before adding the other
-(`make uninstall` or `claude plugin marketplace remove redacid`).
+Both sources register a marketplace named `redacid`. Adding one when the other is already there switches the
+marketplace to the new source, and installed plugins update from it from then on.
 Try it without installing: `make run` (that is `claude --plugin-dir .`).
 
 ## How it works
