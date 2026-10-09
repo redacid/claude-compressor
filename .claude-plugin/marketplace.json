@@ -1,11 +1,11 @@
 {
-  "name": "compressor",
+  "name": "redacid",
   "owner": {
     "name": "Serhii",
     "email": "sr@ios.in.ua"
   },
   "metadata": {
-    "description": "Marketplace for the compressor plugin"
+    "description": "Claude Code plugins by redacid"
   },
   "plugins": [
     {

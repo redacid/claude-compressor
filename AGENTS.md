@@ -44,6 +44,8 @@ hook payload's `cwd` so rtk sees the project's `.claude/settings.json`. Exit cod
 | `src/compressors/rtk.js` | rtk adapter |
 | `src/log.js` | `debug()` → stderr (`COMPRESSOR_DEBUG=1`) and/or file (`COMPRESSOR_LOG=path`) |
 | `scripts/benchmark.js` | raw vs rewritten output size on real repos |
+| `scripts/changelog.js`, `scripts/release-check.sh`, `scripts/ci/` | release notes from PRs merged into main, tag checks, CI tool install, Gitea release upload |
+| `.github/workflows/`, `.gitea/workflows/` | `ci.yml` (any branch push: lint, test, validate), `release.yml` (`vX.Y.Z` tag on main: checks, build, release) — keep both forges in sync |
 | `test/` | `node:test`; `fixtures/bin/fake-rtk` emulates rtk exit codes; `*.integration.test.js` use real rtk, skipped if absent |
 | `docs/` | `benchmark.md` (results), `adding-compressor.md` (compressor API) — Ukrainian |
 
@@ -58,7 +60,10 @@ npm scripts are the source of truth; `make` wraps them (`make help` lists all ta
 - `make test` / `make test-unit` / `node --test test/<file>.test.js`
 - `make hook-test CMD="git log -5"` — pipe a sample payload through the hook with debug output
 - `make bench BENCH_REPOS=". ../other"` — measure savings (real commands, read-only)
-- `make build` — zip of plugin files from `HEAD` into `dist/` (commit first)
+- `make build` — zip of plugin files from `HEAD` into `dist/` (commit first); `make package` skips the checks
+- Release: bump `version` in plugin.json, marketplace.json and package.json via a PR, merge to main, tag `vX.Y.Z` on main.
+  `make release-check TAG=…` and `make changelog TAG=…` run what CI runs. PRs must be merged or squashed (not rebased)
+  so each one leaves a `(#N)` commit on main for the changelog.
 
 ## Hard rules
 

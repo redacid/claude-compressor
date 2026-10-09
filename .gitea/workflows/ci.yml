@@ -1,0 +1,23 @@
+# Every push to any branch: lint, tests (with real rtk) and manifest validation.
+name: ci
+
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install rtk and Claude Code CLI
+        run: scripts/ci/install-tools.sh
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Validate manifests
+        run: make validate

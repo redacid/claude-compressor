@@ -27,10 +27,10 @@ make install
 
 ```bash
 claude plugin marketplace add /path/to/compressor
-claude plugin install compressor@compressor
+claude plugin install compressor@redacid
 ```
 
-Або всередині Claude Code: `/plugin marketplace add /path/to/compressor`, потім `/plugin install compressor@compressor`.
+Або всередині Claude Code: `/plugin marketplace add /path/to/compressor`, потім `/plugin install compressor@redacid`.
 Видалити: `make uninstall`. Спробувати без встановлення: `make run` (це `claude --plugin-dir .`).
 
 ## Як це працює
@@ -128,10 +128,30 @@ AGENTS.md         інструкції для AI-агентів (англійс�
 | `make run-print` | один прогін `claude -p`, `PROMPT="..."` |
 | `make hook-test` | прогнати хук на команді, `CMD="git log -5"` |
 | `make install` / `make update` / `make uninstall` | локальний marketplace і плагін |
+| `make package` | zip плагіна в `dist/` з `HEAD` і файл sha256, без перевірок |
+| `make release-check TAG=v0.2.0` | перевірити тег: формат, коміт у main, версії в маніфестах |
+| `make changelog TAG=v0.2.0` | нотатки релізу з PR, злитих у main |
 | `make clean` | прибрати `dist/` і логи |
 
 Як додати свій компресор: [docs/adding-compressor.md](docs/adding-compressor.md).
 Інструкції для AI-агентів, що працюють із репозиторієм: [AGENTS.md](AGENTS.md) (Claude Code читає його через `.claude/CLAUDE.md`).
+
+## CI/CD
+
+Однакові пайплайни для GitHub (`.github/workflows/`) і Gitea (`.gitea/workflows/`):
+
+- **Пуш у будь-яку гілку** (`ci.yml`): `make lint`, `make test` зі справжнім rtk, `make validate`.
+- **Тег `vX.Y.Z`** (`release.yml`): тег має стояти на коміті з `main`, а його версія має збігатися з `version`
+  у plugin.json, marketplace.json і package.json, інакше реліз падає. Далі lint, тести, валідація, `make package`
+  і реліз з архівом, sha256 та `CHANGELOG.md`.
+- **Changelog** формується з PR, злитих у `main` після попереднього тегу (merge або squash; rebase-merge
+  не лишає номера PR, тому такі PR не потраплять у список). Прямі коміти в `main` у changelog не йдуть.
+
+Як випустити реліз: PR з новою версією в маніфестах → merge у `main` → `git tag v0.2.0 origin/main && git push origin v0.2.0`.
+
+Заборонити теги поза `main` на рівні сервера можна лише в налаштуваннях репозиторію (GitHub: ruleset для тегів
+`v*`; Gitea: protected tags). CI це перевіряє, але сам тег уже буде створено. Для Gitea потрібен раннер з міткою
+`ubuntu-latest`; якщо токен задачі не може створювати релізи, додай секрет `RELEASE_TOKEN`.
 
 ## Вимір ефекту
 

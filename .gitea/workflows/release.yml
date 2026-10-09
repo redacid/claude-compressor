@@ -1,0 +1,42 @@
+# A vX.Y.Z tag on main: checks, tests, build and a Gitea release with the zip,
+# its sha256 and release notes built from the pull requests merged into main.
+# Uses the job token; set a RELEASE_TOKEN secret if the runner's token cannot
+# write releases.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check tag (vX.Y.Z, on main, matches manifest versions)
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          make release-check TAG="${{ gitea.ref_name }}"
+      - name: Install rtk and Claude Code CLI
+        run: scripts/ci/install-tools.sh
+      - name: Lint
+        run: make lint
+      - name: Test
+        run: make test
+      - name: Validate manifests
+        run: make validate
+      - name: Build
+        run: make package
+      - name: Changelog
+        run: make --silent changelog TAG="${{ gitea.ref_name }}" > dist/CHANGELOG.md
+      - name: Publish release
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          GITEA_REPO: ${{ gitea.repository }}
+          GITEA_TOKEN: ${{ secrets.RELEASE_TOKEN || gitea.token }}
+        run: node scripts/ci/gitea-release.js "${{ gitea.ref_name }}" dist/CHANGELOG.md dist/*.zip dist/*.sha256 dist/CHANGELOG.md

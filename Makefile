@@ -10,6 +10,7 @@ DIST        := dist
 PACKAGE     := $(DIST)/$(NAME)-$(VERSION).zip
 JS_FILES    := $(shell git ls-files '*.js' 2>/dev/null)
 BENCH_REPOS ?= .
+MAIN_REF    ?= origin/main
 PROMPT      ?= Run git status and ls -la, then summarise the output in one line.
 
 .DEFAULT_GOAL := help
@@ -56,12 +57,24 @@ bench-md: ## Same as bench, Markdown tables
 	$(NPM) run --silent bench -- --md $(BENCH_REPOS)
 
 .PHONY: build
-build: check $(PACKAGE) ## Check, then package the plugin into dist/
+build: check package ## Check, then package the plugin into dist/
+
+.PHONY: package
+package: $(PACKAGE) ## Zip the plugin from HEAD into dist/ with a sha256 file (no checks)
 
 $(PACKAGE): $(shell git ls-files 2>/dev/null)
 	@mkdir -p $(DIST)
 	git archive --format=zip --prefix=$(NAME)/ -o $@ HEAD -- .claude-plugin hooks src config package.json README.md
+	cd $(DIST) && sha256sum $(notdir $@) > $(notdir $@).sha256
 	@echo "built $@ (from HEAD; commit changes first)"
+
+.PHONY: release-check
+release-check: ## Check a release tag: TAG=vX.Y.Z (format, on main, versions match)
+	scripts/release-check.sh $(TAG) $(MAIN_REF)
+
+.PHONY: changelog
+changelog: ## Release notes from PRs merged into main: TAG=vX.Y.Z [PREV=vA.B.C]
+	$(NODE) scripts/changelog.js $(TAG) $(PREV)
 
 .PHONY: run
 run: ## Start Claude Code with the plugin loaded from this checkout
@@ -77,7 +90,7 @@ hook-test: ## Pipe a sample payload through the hook; CMD="git status"
 	@printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"%s"}}' "$(CURDIR)" "$${CMD:-git status}" \
 		| COMPRESSOR_DEBUG=1 $(NODE) hooks/dispatch.js; echo
 
-MARKETPLACE := compressor
+MARKETPLACE := redacid
 PLUGIN_ID   := $(NAME)@$(MARKETPLACE)
 
 .PHONY: install
