@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { compress, handle } = require('../src/dispatcher');
-const { fake, tmpJson, bashPayload } = require('./helpers');
+const { fake, tmpDir, tmpJson, bashPayload, isolatedEnv } = require('./helpers');
 
 const ENV = { COMPRESSOR_CONFIG: '/nonexistent/compressor.json' };
 
@@ -84,7 +84,7 @@ function runHook(stdin, env = {}) {
   return spawnSync(process.execPath, [path.join(__dirname, '..', 'hooks', 'dispatch.js')], {
     input: stdin,
     encoding: 'utf8',
-    env: { ...process.env, ...ENV, ...env },
+    env: isolatedEnv(env),
   });
 }
 
@@ -102,8 +102,7 @@ test('hook entry prints nothing when no compressor is enabled', () => {
 
 test('COMPRESSOR_LOG appends debug lines to a file', () => {
   const fs = require('node:fs');
-  const os = require('node:os');
-  const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'compressor-log-')), 'hook.log');
+  const log = path.join(tmpDir('compressor-log-'), 'hook.log');
   const fixtures = path.join(__dirname, 'fixtures', 'bin');
   const r = runHook(JSON.stringify(bashPayload('git status')), {
     COMPRESSOR_LOG: log,

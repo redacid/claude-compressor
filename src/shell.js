@@ -50,10 +50,10 @@ function segments(masked) {
 // True when output is redirected into something other than /dev/null or
 // another file descriptor (2>&1, >&2 are fine).
 function redirectsToFile(masked) {
-  const re = /(?:&>>?|\d*>>?|>\|)(\s*)(&?)([^\s;|&()<>]*)/g;
+  const re = /(?:&>>?|\d*>\||\d*>>?)(\s*)(&?)([^\s;|&()<>]*)/g;
   let m;
   while ((m = re.exec(masked)) !== null) {
-    if (m[2] === '&') continue;
+    if (m[2] === '&' && /^(?:\d+-?|-)$/.test(m[3])) continue;
     if (m[3] === '/dev/null') continue;
     return true;
   }

@@ -30,19 +30,32 @@ function nextVersion(current, arg) {
   return `${m[1]}.${m[2]}.${m[3]}`;
 }
 
-function main([arg]) {
-  const current = require(path.join(ROOT, '.claude-plugin/plugin.json')).version;
+function bumpVersion(arg, root = ROOT) {
+  const current = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8')).version;
   const next = nextVersion(current, arg);
+  if (next === current) return { current, next, changes: [] };
+  // Read and validate every file before changing any version.
+  const changes = FILES.map(([file, edit]) => {
+    const full = path.join(root, file);
+    const before = fs.readFileSync(full, 'utf8');
+    const after = edit(before, current, next);
+    if (after === before && file !== 'README.md') throw new Error(`${file}: version ${current} not found`);
+    if (file.endsWith('.json')) JSON.parse(after);
+    return { file, full, before, after };
+  });
+  for (const { full, after } of changes) {
+    fs.writeFileSync(full, after);
+  }
+  return { current, next, changes };
+}
+
+function main([arg]) {
+  const { current, next, changes } = bumpVersion(arg);
   if (next === current) {
     console.log(`version is already ${current}`);
     return;
   }
-  for (const [file, edit] of FILES) {
-    const full = path.join(ROOT, file);
-    const before = fs.readFileSync(full, 'utf8');
-    const after = edit(before, current, next);
-    if (after === before && file !== 'README.md') throw new Error(`${file}: version ${current} not found`);
-    fs.writeFileSync(full, after);
+  for (const { file, before, after } of changes) {
     console.log(`${file}: ${after === before ? 'unchanged' : `${current} -> ${next}`}`);
   }
   console.log(`\nNext: commit, open a PR to main, merge, then tag v${next} on main.`);
@@ -57,4 +70,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { nextVersion };
+module.exports = { nextVersion, bumpVersion };

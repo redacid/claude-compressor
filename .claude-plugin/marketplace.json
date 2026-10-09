@@ -12,7 +12,7 @@
       "name": "compressor",
       "source": "./",
       "description": "Automatically compresses the output of the agent's shell commands (rtk and other pluggable compressors) via a PreToolUse hook.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "license": "MIT",
       "keywords": ["rtk", "tokens", "compression", "bash", "hooks"],
       "category": "productivity"

@@ -27,7 +27,7 @@ claude plugin install compressor@redacid
 
 Or inside Claude Code: `/plugin marketplace add redacid/claude-compressor`, then `/plugin install compressor@redacid`.
 
-- Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.1'`.
+- Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.2'`.
 - Update: `claude plugin marketplace update redacid && claude plugin update compressor@redacid`.
 - Offer the plugin to everyone working in a project: add `--scope project` to `marketplace add`; the marketplace is
   then recorded in that project's `.claude/settings.json`.
@@ -63,10 +63,13 @@ Bash tool call ─► hooks/dispatch.js ─► src/dispatcher.js ─► compress
 - The rtk adapter (`src/compressors/rtk.js`) asks rtk itself (`rtk rewrite`) whether the command has a compact
   equivalent, and adds its own guards. These are not rewritten:
   - commands that already use `rtk`;
+  - wrapper commands such as `env`, `sudo` and `command`, and quoted executable names that cannot be scanned reliably;
   - heredocs, `$(...)` and backticks;
   - redirects to a file (`2>&1` and `/dev/null` are fine) and `tee`, so compressed output never lands in a file;
   - interactive commands: `vim`, `less`, `ssh`, `git add -p`, `git rebase -i`, `docker/kubectl exec -it`;
-  - follow modes: `tail -f`, `kubectl logs -f`.
+  - follow modes, including combined flags and `--follow=...`: `tail -fn 20`, `docker logs --follow=true`.
+
+Guards also recognize executable paths such as `/usr/bin/tee` and interactive Git commands with global options.
 
 rtk compression is **lossy**: a large diff is truncated with a hint on how to get the full one
 (`rtk git diff --no-compact`), and `git log` shows `[+N lines omitted]` markers.

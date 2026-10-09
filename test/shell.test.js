@@ -21,10 +21,10 @@ test('segments splits on control operators and drops env assignments', () => {
 });
 
 test('redirectsToFile ignores fd duplication and /dev/null', () => {
-  for (const ok of ['cmd 2>&1', 'cmd >&2', 'cmd 2>/dev/null', 'cmd > /dev/null 2>&1', 'cmd']) {
+  for (const ok of ['cmd 2>&1', 'cmd >&2', 'cmd 2>&-', 'cmd 2>&1-', 'cmd 2>/dev/null', 'cmd > /dev/null 2>&1', 'cmd']) {
     assert.equal(redirectsToFile(ok), false, ok);
   }
-  for (const bad of ['cmd > out', 'cmd >> log', 'cmd 2> err', 'cmd &> all', 'cmd >| f', 'cmd>out']) {
+  for (const bad of ['cmd > out', 'cmd >> log', 'cmd 2> err', 'cmd &> all', 'cmd >| f', 'cmd>out', 'cmd >&out.txt', 'cmd >&', 'cmd >&$FD', 'cmd 2>|file', 'cmd 2>&1 >out']) {
     assert.equal(redirectsToFile(bad), true, bad);
   }
 });

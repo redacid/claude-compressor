@@ -1,6 +1,6 @@
 {
   "name": "compressor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Claude Code plugin that compresses shell command output via rtk and other pluggable compressors",
   "private": true,
   "license": "MIT",
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "test:unit": "node --test test/config.test.js test/registry.test.js test/dispatcher.test.js test/shell.test.js test/rtk.test.js test/changelog.test.js test/bump-version.test.js",
+    "test:unit": "node --test test/config.test.js test/registry.test.js test/dispatcher.test.js test/shell.test.js test/rtk.test.js test/changelog.test.js test/bump-version.test.js test/benchmark.test.js test/hook-test.test.js test/helpers.test.js test/ci-install.test.js",
     "bench": "node scripts/benchmark.js"
   }
 }

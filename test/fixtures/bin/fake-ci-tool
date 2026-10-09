@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const name = path.basename(process.argv[1]);
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.TEST_CI_LOG, JSON.stringify({ name, args }) + '\n');
+
+if (name === 'curl') {
+  if (process.env.TEST_CI_CURL_FAIL) process.exit(22);
+  fs.copyFileSync(process.env.TEST_CI_ARCHIVE, args[args.indexOf('-o') + 1]);
+} else if (name === 'tar') {
+  fs.writeFileSync(path.join(args[args.indexOf('-C') + 1], 'rtk'), '#!/bin/sh\necho fake-rtk\n');
+} else if (name !== 'npm' && name !== 'claude') {
+  process.exit(1);
+}

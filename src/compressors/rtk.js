@@ -53,22 +53,26 @@ function resetCache() {
 }
 
 function isInteractive(words) {
-  const [cmd, sub] = words;
+  const cmd = path.posix.basename(words[0]);
   const args = words.slice(1);
-  const has = (...flags) => args.some((a) => flags.includes(a));
+  const has = (...flags) => args.some((arg) => flags.some((flag) => {
+    if (flag.startsWith('--')) return arg === flag || arg.startsWith(`${flag}=`);
+    return /^-[^-]/.test(arg) && arg.slice(1).includes(flag.slice(1));
+  }));
   if (INTERACTIVE.has(cmd)) return true;
   if (cmd === 'git') {
-    if (sub === 'add' && has('-p', '-i', '--patch', '--interactive')) return true;
-    if (sub === 'rebase' && has('-i', '--interactive')) return true;
-    if (sub === 'commit' && has('-p', '--patch')) return true;
+    // Global options can precede the subcommand; ambiguous forms are skipped.
+    if (args.includes('add') && has('-p', '-i', '--patch', '--interactive')) return true;
+    if (args.includes('rebase') && has('-i', '--interactive')) return true;
+    if (args.includes('commit') && has('-p', '-i', '--patch', '--interactive')) return true;
   }
-  if (['docker', 'podman', 'kubectl', 'oc'].includes(cmd) && ['exec', 'run', 'attach'].includes(sub)) {
-    if (args.some((a) => /^-[a-z]*[it][a-z]*$/.test(a) && !a.startsWith('--')) || has('--interactive', '--tty', '--stdin')) {
+  if (['docker', 'podman', 'kubectl', 'oc'].includes(cmd) && args.some((a) => ['exec', 'run', 'attach'].includes(a))) {
+    if (has('-i', '-t', '--interactive', '--tty', '--stdin')) {
       return true;
     }
   }
   // Streaming / follow modes never finish, so a buffering filter would hide everything.
-  if ((cmd === 'tail' || sub === 'logs') && has('-f', '-F', '--follow')) return true;
+  if ((cmd === 'tail' || args.includes('logs')) && has('-f', '-F', '--follow')) return true;
   return false;
 }
 
@@ -84,8 +88,13 @@ function skipReason(command) {
   const segs = segments(masked);
   if (segs.length === 0) return 'empty';
   for (const words of segs) {
-    if (words[0] === 'rtk') return 'already rtk';
-    if (words[0] === 'tee') return 'tee';
+    const cmd = path.posix.basename(words[0]);
+    if (cmd === 'rtk') return 'already rtk';
+    if (cmd === 'tee') return 'tee';
+    // Wrapper options and quoted executable names need a real shell parser.
+    if (/['"]/.test(words[0]) || ['env', 'command', 'sudo', 'doas', 'exec', 'nohup', 'nice', 'timeout', 'stdbuf'].includes(cmd)) {
+      return 'ambiguous command';
+    }
     if (isInteractive(words)) return 'interactive';
   }
   return null;

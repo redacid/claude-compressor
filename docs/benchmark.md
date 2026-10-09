@@ -7,6 +7,9 @@ Date: 2026-10-09. rtk 0.49.0, Claude Code 2.1.294, Node 22.
 `npm run bench -- [--md] <repo> ...` (`scripts/benchmark.js`) runs a fixed set of read-only commands in each
 repository twice: as is, and as the plugin rewrites it (the same `compress()` and rtk adapter the hook uses).
 It measures stdout+stderr: bytes and approximate tokens (characters / 4).
+The current script reports rewrite latency and execution failures. Failed raw or rewritten commands
+are excluded from totals and cause a nonzero exit status. Rewrites use the target repository's cwd.
+The historical results below predate these checks and have not been regenerated.
 "— (unchanged)" means the plugin leaves the command alone (here: `$(...)`, the guard against substitutions).
 
 Repositories: `compressor` (this one, 4 commits), `obot-mcp-catalog` (474 commits, 99 files),

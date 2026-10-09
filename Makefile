@@ -8,7 +8,7 @@ NAME        := compressor
 VERSION     := $(shell $(NODE) -p "require('./.claude-plugin/plugin.json').version")
 DIST        := dist
 PACKAGE     := $(DIST)/$(NAME)-$(VERSION).zip
-JS_FILES    := $(shell git ls-files '*.js' 2>/dev/null)
+JS_FILES    := $(shell find src hooks scripts test -type f -name '*.js')
 BENCH_REPOS ?= .
 MAIN_REF    ?= origin/main
 PROMPT      ?= Run git status and ls -la, then summarise the output in one line.
@@ -42,8 +42,9 @@ test-unit: ## Run unit tests only (no real rtk)
 
 .PHONY: validate
 validate: ## Validate plugin and marketplace manifests with claude
-	$(CLAUDE) plugin validate .claude-plugin/plugin.json
-	$(CLAUDE) plugin validate .claude-plugin/marketplace.json
+	@config_dir=$$(mktemp -d) || exit 1; trap 'rm -rf "$$config_dir"' 0; \
+		CLAUDE_CONFIG_DIR="$$config_dir" $(CLAUDE) plugin validate .claude-plugin/plugin.json && \
+		CLAUDE_CONFIG_DIR="$$config_dir" $(CLAUDE) plugin validate .claude-plugin/marketplace.json
 
 .PHONY: check
 check: lint test validate ## Lint, test and validate
@@ -64,7 +65,7 @@ package: $(PACKAGE) ## Zip the plugin from HEAD into dist/ with a sha256 file (n
 
 $(PACKAGE): $(shell git ls-files 2>/dev/null)
 	@mkdir -p $(DIST)
-	git archive --format=zip --prefix=$(NAME)/ -o $@ HEAD -- .claude-plugin hooks src config package.json README.md
+	git archive --format=zip --prefix=$(NAME)/ -o $@ HEAD -- .claude-plugin hooks src config package.json README.md LICENSE
 	cd $(DIST) && sha256sum $(notdir $@) > $(notdir $@).sha256
 	@echo "built $@ (from HEAD; commit changes first)"
 
@@ -90,8 +91,9 @@ run-print: ## One headless run with the plugin; PROMPT="..." to change the promp
 	@echo "--- hook log:"; tail -n 20 compressor.log 2>/dev/null || true
 
 .PHONY: hook-test
+export CMD
 hook-test: ## Pipe a sample payload through the hook; CMD="git status"
-	@printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"%s"}}' "$(CURDIR)" "$${CMD:-git status}" \
+	@$(NODE) scripts/hook-test.js \
 		| COMPRESSOR_DEBUG=1 $(NODE) hooks/dispatch.js; echo
 
 MARKETPLACE := redacid
