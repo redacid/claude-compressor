@@ -1,0 +1,10 @@
+#!/bin/sh
+# Stand-in for `rtk rewrite`: rewrites commands starting with "git ",
+# emits garbage for "garbage", hangs for "hang", rejects everything else.
+[ "$1" = "rewrite" ] || exit 2
+case "$2" in
+  git\ *) echo "noise on stderr" >&2; printf 'rtk %s\n' "$2"; exit 3 ;;
+  garbage) echo "not a rewrite"; exit 0 ;;
+  hang) sleep 10 ;;
+  *) exit 1 ;;
+esac
