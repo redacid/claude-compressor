@@ -146,6 +146,7 @@ AGENTS.md         instructions for AI agents (.claude/CLAUDE.md imports it)
 | `make run-print` | one `claude -p` run, `PROMPT="..."` |
 | `make hook-test` | run the hook on a command, `CMD="git log -5"` |
 | `make install` / `make update` / `make uninstall` | local marketplace and plugin |
+| `make bump V=0.1.1` | set the version in plugin.json, marketplace.json, package.json and README (`V=patch`, `minor`, `major` also work) |
 | `make release-check TAG=v0.2.0` | check a tag: format, commit on main, manifest versions |
 | `make changelog TAG=v0.2.0` | release notes from PRs merged into main |
 | `make clean` | remove `dist/` and logs |
@@ -164,7 +165,7 @@ The same pipelines for GitHub (`.github/workflows/`) and Gitea (`.gitea/workflow
 - **The changelog** is built from PRs merged into `main` since the previous tag (merge or squash; a rebase merge
   leaves no PR number, so such PRs are not listed). Direct commits to `main` are not included.
 
-Cutting a release: a PR bumping the version in the manifests → merge into `main` →
+Cutting a release: `make bump V=0.2.0` (or `V=patch`) in a branch → PR → merge into `main` →
 `git tag v0.2.0 origin/main && git push origin v0.2.0`.
 
 Tags outside `main` can only be blocked server-side, in the repository settings (GitHub: a tag ruleset for `v*`;

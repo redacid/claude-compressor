@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "node --test test/*.test.js",
-    "test:unit": "node --test test/config.test.js test/registry.test.js test/dispatcher.test.js test/shell.test.js test/rtk.test.js test/changelog.test.js",
+    "test:unit": "node --test test/config.test.js test/registry.test.js test/dispatcher.test.js test/shell.test.js test/rtk.test.js test/changelog.test.js test/bump-version.test.js",
     "bench": "node scripts/benchmark.js"
   }
 }

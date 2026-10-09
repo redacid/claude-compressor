@@ -68,6 +68,10 @@ $(PACKAGE): $(shell git ls-files 2>/dev/null)
 	cd $(DIST) && sha256sum $(notdir $@) > $(notdir $@).sha256
 	@echo "built $@ (from HEAD; commit changes first)"
 
+.PHONY: bump
+bump: ## Set the version in every manifest and README: V=0.1.1 or V=patch|minor|major
+	$(NODE) scripts/bump-version.js $(V)
+
 .PHONY: release-check
 release-check: ## Check a release tag: TAG=vX.Y.Z (format, on main, versions match)
 	scripts/release-check.sh $(TAG) $(MAIN_REF)
