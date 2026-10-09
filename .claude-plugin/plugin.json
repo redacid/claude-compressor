@@ -1,6 +1,6 @@
 {
   "name": "compressor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automatically compresses the output of the agent's shell commands (rtk and other pluggable compressors) via a PreToolUse hook.",
   "author": {
     "name": "Serhii",

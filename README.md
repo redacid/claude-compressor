@@ -27,7 +27,7 @@ claude plugin install compressor@redacid
 
 Or inside Claude Code: `/plugin marketplace add redacid/claude-compressor`, then `/plugin install compressor@redacid`.
 
-- Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.0'`.
+- Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.1'`.
 - Update: `claude plugin marketplace update redacid && claude plugin update compressor@redacid`.
 - Offer the plugin to everyone working in a project: add `--scope project` to `marketplace add`; the marketplace is
   then recorded in that project's `.claude/settings.json`.
