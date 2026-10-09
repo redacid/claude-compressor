@@ -40,8 +40,9 @@ test-unit: ## Run unit tests only (no real rtk)
 	$(NPM) run --silent test:unit
 
 .PHONY: validate
-validate: ## Validate plugin (and marketplace) manifests with claude
-	$(CLAUDE) plugin validate .
+validate: ## Validate plugin and marketplace manifests with claude
+	$(CLAUDE) plugin validate .claude-plugin/plugin.json
+	$(CLAUDE) plugin validate .claude-plugin/marketplace.json
 
 .PHONY: check
 check: lint test validate ## Lint, test and validate
@@ -75,6 +76,24 @@ run-print: ## One headless run with the plugin; PROMPT="..." to change the promp
 hook-test: ## Pipe a sample payload through the hook; CMD="git status"
 	@printf '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"%s","tool_input":{"command":"%s"}}' "$(CURDIR)" "$${CMD:-git status}" \
 		| COMPRESSOR_DEBUG=1 $(NODE) hooks/dispatch.js; echo
+
+MARKETPLACE := compressor
+PLUGIN_ID   := $(NAME)@$(MARKETPLACE)
+
+.PHONY: install
+install: ## Add this checkout as a local marketplace and install the plugin (user scope)
+	$(CLAUDE) plugin marketplace add $(CURDIR)
+	$(CLAUDE) plugin install $(PLUGIN_ID)
+
+.PHONY: update
+update: ## Re-read the local marketplace and update the installed plugin
+	$(CLAUDE) plugin marketplace update $(MARKETPLACE)
+	$(CLAUDE) plugin update $(PLUGIN_ID)
+
+.PHONY: uninstall
+uninstall: ## Uninstall the plugin and remove the local marketplace
+	-$(CLAUDE) plugin uninstall $(PLUGIN_ID)
+	-$(CLAUDE) plugin marketplace remove $(MARKETPLACE)
 
 .PHONY: clean
 clean: ## Remove build output and logs

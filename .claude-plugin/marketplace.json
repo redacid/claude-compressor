@@ -1,0 +1,21 @@
+{
+  "name": "compressor",
+  "owner": {
+    "name": "Serhii",
+    "email": "sr@ios.in.ua"
+  },
+  "metadata": {
+    "description": "Marketplace for the compressor plugin"
+  },
+  "plugins": [
+    {
+      "name": "compressor",
+      "source": "./",
+      "description": "Automatically compresses the output of the agent's shell commands (rtk and other pluggable compressors) via a PreToolUse hook.",
+      "version": "0.1.0",
+      "license": "MIT",
+      "keywords": ["rtk", "tokens", "compression", "bash", "hooks"],
+      "category": "productivity"
+    }
+  ]
+}
