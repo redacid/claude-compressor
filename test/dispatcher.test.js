@@ -16,7 +16,7 @@ test('first available matching compressor wins', () => {
     fake('a'),
     fake('b'),
   ];
-  assert.deepEqual(compress('ls', list), { compressor: 'a', command: 'a ls' });
+  assert.deepEqual(compress('ls', list), { compressor: 'a', command: 'a ls', allow: false });
 });
 
 test('no-op, empty and throwing rewrites fall through', () => {
@@ -42,6 +42,29 @@ test('handle builds updatedInput without permissionDecision and keeps other fiel
     },
   });
   assert.equal('permissionDecision' in out.hookSpecificOutput, false);
+});
+
+test('allow verdict becomes permissionDecision allow, only when strictly true', () => {
+  const allowed = handle(bashPayload('ls'), {
+    env: ENV,
+    compressors: [fake('a', { rewrite: (c) => ({ command: `a ${c}`, allow: true }) })],
+  });
+  assert.equal(allowed.hookSpecificOutput.permissionDecision, 'allow');
+  assert.equal(allowed.hookSpecificOutput.updatedInput.command, 'a ls');
+
+  for (const allow of [false, 'yes', 1, undefined]) {
+    const out = handle(bashPayload('ls'), {
+      env: ENV,
+      compressors: [fake('a', { rewrite: (c) => ({ command: `a ${c}`, allow }) })],
+    });
+    assert.equal('permissionDecision' in out.hookSpecificOutput, false, String(allow));
+  }
+});
+
+test('compress passes the hook cwd to compressors', () => {
+  let seen;
+  compress('ls', [fake('a', { rewrite: (c, ctx) => { seen = ctx; return `a ${c}`; } })], { cwd: '/x' });
+  assert.deepEqual(seen, { cwd: '/x' });
 });
 
 test('handle ignores non-Bash tools, bad input and disabled config', () => {

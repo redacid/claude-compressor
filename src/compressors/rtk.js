@@ -10,9 +10,14 @@ const { spawnSync } = require('node:child_process');
 const { maskQuotes, segments, redirectsToFile } = require('../shell');
 const { debug } = require('../log');
 
-// Exit codes of `rtk rewrite` that carry a rewritten command on stdout.
-// 0 = rewrite, 3 = rewrite but leave the permission decision to the host.
-const REWRITE_CODES = new Set([0, 3]);
+// Exit codes of `rtk rewrite` (it reads the user's and project's
+// settings.json permission rules, relative to its cwd):
+//   0 = rewritten, and every part of the original command is allowed
+//   1 = no rtk equivalent
+//   2 = original is denied: leave it alone so the deny rule applies
+//   3 = rewritten, no allow rule (or an ask rule): host decides
+const EXIT_ALLOWED = 0;
+const EXIT_REWRITTEN = 3;
 const TIMEOUT_MS = 3000;
 
 const INTERACTIVE = new Set([
@@ -99,16 +104,20 @@ module.exports = {
     return reason === null;
   },
 
-  rewrite(command) {
+  rewrite(command, { cwd } = {}) {
     const r = spawnSync(rtkBin(), ['rewrite', command], {
+      cwd: cwd || undefined,
       encoding: 'utf8',
       timeout: TIMEOUT_MS,
       stdio: ['ignore', 'pipe', 'ignore'],
     });
-    if (r.error || !REWRITE_CODES.has(r.status)) return null;
+    if (r.error || (r.status !== EXIT_ALLOWED && r.status !== EXIT_REWRITTEN)) {
+      debug(`rtk: no rewrite (${r.error ? r.error.code || r.error.message : `exit ${r.status}`}): ${command}`);
+      return null;
+    }
     const out = r.stdout.replace(/\n+$/, '');
     if (!out || !/(^|[\s;&|(])rtk\s/.test(out)) return null;
-    return out;
+    return { command: out, allow: r.status === EXIT_ALLOWED };
   },
 
   // exported for tests

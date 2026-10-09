@@ -129,4 +129,23 @@ Claude Code застосовує правила дозволів до коман
 `git status && rm -rf zzz` → 3, `git status && git push` (push заборонено) → 2,
 `git status && git status` → 0. Правил із `--allowedTools` і вбудованого автодозволення rtk не бачить.
 
-Рішення, як це виправити, чекає на вибір власника (див. звіт кроку 3).
+## Рішення: варіант A (як у rtk)
+
+Плагін ставить `permissionDecision: "allow"` **лише** коли `rtk rewrite` повернув 0, тобто правила
+з settings.json уже дозволяють оригінальну команду повністю. На 3 рішення не ставиться (звичайний запит),
+на 2 команда не переписується, і заборона спрацьовує на оригіналі. `rtk rewrite` запускається в `cwd`
+з payload хука, щоб бачити `.claude/settings.json` проєкту. Права плагін не розширює.
+
+Живий прогін (тимчасовий клон, `.claude/settings.json`: allow `git status`, `git log`; deny `git push`;
+без `--allowedTools`):
+
+```
+rtk: git status -> rtk git status (allow)    виконано без запиту
+rtk: git log -3 -> rtk git log -3 (allow)    виконано без запиту
+rtk: ls -la -> rtk ls -la                    "requires approval" (правила нема)
+git push                                     не переписано, відхилено deny-правилом
+```
+
+Обмеження: команди, які Claude Code дозволяє сам (лише читання: `ls`, `git diff`, ...), і правила з
+`--allowedTools` rtk не бачить, тож для них після переписування буде запит. Щоб їх стискати без
+запитів, додайте явні allow-правила для оригінальних команд, наприклад `Bash(ls:*)`, `Bash(git diff:*)`.

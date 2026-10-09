@@ -1,8 +1,11 @@
 #!/bin/sh
-# Stand-in for `rtk rewrite`: rewrites commands starting with "git ",
-# emits garbage for "garbage", hangs for "hang", rejects everything else.
+# Stand-in for `rtk rewrite`: "git status*" is rewritten and allowed (exit 0),
+# "git push*" is denied (exit 2), other "git *" is rewritten without a verdict
+# (exit 3), "garbage" emits junk, "hang" hangs, everything else has no rewrite.
 [ "$1" = "rewrite" ] || exit 2
 case "$2" in
+  git\ status*) printf 'rtk %s\n' "$2"; exit 0 ;;
+  git\ push*) exit 2 ;;
   git\ *) echo "noise on stderr" >&2; printf 'rtk %s\n' "$2"; exit 3 ;;
   garbage) echo "not a rewrite"; exit 0 ;;
   hang) sleep 10 ;;

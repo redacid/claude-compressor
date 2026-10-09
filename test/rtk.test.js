@@ -83,9 +83,11 @@ test('findOnPath finds executables only', () => {
   assert.equal(rtk.findOnPath('fake-rtk', '/nonexistent'), null);
 });
 
-test('rewrite uses rtk output and rejects anything else', () => {
+test('rewrite maps rtk exit codes to command and allow verdict', () => {
   withBin(FAKE, () => {
-    assert.equal(rtk.rewrite('git status'), 'rtk git status');
+    assert.deepEqual(rtk.rewrite('git status'), { command: 'rtk git status', allow: true });
+    assert.deepEqual(rtk.rewrite('git log -5'), { command: 'rtk git log -5', allow: false });
+    assert.equal(rtk.rewrite('git push'), null, 'denied commands are left alone');
     assert.equal(rtk.rewrite('echo hi'), null);
     assert.equal(rtk.rewrite('garbage'), null);
   });
