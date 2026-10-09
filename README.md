@@ -110,6 +110,7 @@ config/           compressors.json (увімкнені компресори та
 scripts/          benchmark.js
 test/             node:test, фейковий rtk у test/fixtures/bin
 docs/             benchmark.md, adding-compressor.md
+AGENTS.md         інструкції для AI-агентів (англійською; .claude/CLAUDE.md імпортує його)
 ```
 
 | Ціль | Що робить |
@@ -130,6 +131,7 @@ docs/             benchmark.md, adding-compressor.md
 | `make clean` | прибрати `dist/` і логи |
 
 Як додати свій компресор: [docs/adding-compressor.md](docs/adding-compressor.md).
+Інструкції для AI-агентів, що працюють із репозиторієм: [AGENTS.md](AGENTS.md) (Claude Code читає його через `.claude/CLAUDE.md`).
 
 ## Вимір ефекту
 
