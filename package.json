@@ -1,0 +1,13 @@
+{
+  "name": "compressor",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that compresses shell command output via rtk and other pluggable compressors",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
