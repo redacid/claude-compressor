@@ -1,38 +1,38 @@
-# Вимір ефекту
+# Benchmark
 
-Дата: 2026-10-09. rtk 0.49.0, Claude Code 2.1.294, Node 22.
+Date: 2026-10-09. rtk 0.49.0, Claude Code 2.1.294, Node 22.
 
-## Методика
+## Method
 
-`npm run bench -- [--md] <repo> ...` (`scripts/benchmark.js`) запускає фіксований набір команд лише для читання
-у кожному репозиторії двічі: як є і в тому вигляді, в який її переписує плагін (той самий
-`compress()` і адаптер rtk, що й у хуку). Вимірюються stdout+stderr: байти та приблизні токени (символи / 4).
-«— (без змін)» означає, що плагін команду не чіпає (тут: `$(...)` — запобіжник проти підстановок).
+`npm run bench -- [--md] <repo> ...` (`scripts/benchmark.js`) runs a fixed set of read-only commands in each
+repository twice: as is, and as the plugin rewrites it (the same `compress()` and rtk adapter the hook uses).
+It measures stdout+stderr: bytes and approximate tokens (characters / 4).
+"— (unchanged)" means the plugin leaves the command alone (here: `$(...)`, the guard against substitutions).
 
-Репозиторії: `compressor` (цей, 4 коміти), `obot-mcp-catalog` (474 коміти, 99 файлів),
-`kubeconform` (398 комітів, 288 файлів; робоче дерево брудне, тому `git status` великий).
+Repositories: `compressor` (this one, 4 commits), `obot-mcp-catalog` (474 commits, 99 files),
+`kubeconform` (398 commits, 288 files; the working tree is dirty, so `git status` is large).
 
-## Підсумок
+## Summary
 
-| Репозиторій | Токени до | Токени після | Економія |
+| Repository | Tokens before | Tokens after | Savings |
 |---|---:|---:|---:|
 | compressor | 6370 | 5721 | 10.2% |
 | obot-mcp-catalog | 7224 | 3304 | 54.3% |
 | kubeconform | 353401 | 39946 | 88.7% |
 
-Найбільший ефект — на великому виводі: `git diff` (96%), `grep -rn` (90%), `find` (93%), `ls -la` (71–77%),
-`git log` (35–79%). Майже без ефекту: `git log --stat`, `git diff --stat`, `git log --oneline | head` —
-rtk пропускає їх як є.
+The biggest effect is on large output: `git diff` (96%), `grep -rn` (90%), `find` (93%), `ls -la` (71–77%),
+`git log` (35–79%). Almost no effect: `git log --stat`, `git diff --stat`, `git log --oneline | head`;
+rtk passes them through unchanged.
 
-Важливо: стиснення rtk **втратне**. Великий diff обрізається з підказкою
-`[full diff: rtk git diff --no-compact]`, у `git log` з'являються маркери `[+N lines omitted]`.
-Агент бачить, що вивід скорочено, і може попросити повний.
+Note: rtk compression is **lossy**. A large diff is truncated with the hint
+`[full diff: rtk git diff --no-compact]`, and `git log` shows `[+N lines omitted]` markers.
+The agent sees that the output was shortened and can ask for the full version.
 
-## Деталі
+## Details
 
 ### compressor
 
-| Команда | Переписано на | Байти до | Байти після | Токени до | Токени після | Економія |
+| Command | Rewritten to | Bytes before | Bytes after | Tokens before | Tokens after | Savings |
 |---|---|---:|---:|---:|---:|---:|
 | `git status` | `rtk git status` | 389 | 49 | 98 | 13 | 86.7% |
 | `git log -20` | `rtk git log -20` | 1156 | 754 | 289 | 189 | 34.6% |
@@ -44,13 +44,13 @@ rtk пропускає їх як є.
 | `ls -la` | `rtk ls -la` | 781 | 181 | 196 | 46 | 76.5% |
 | `find . -type f -not -path "./.git/*"` | `rtk find . -type f -not -path "./.git/*"` | 652 | 555 | 163 | 139 | 14.7% |
 | `grep -rn "func\\|function" --include=*.go --include=*.js .` | `rtk grep -rn "func\\|function" --include=*.go --include=*.js .` | 2239 | 2239 | 560 | 560 | 0.0% |
-| `wc -l $(git ls-files \| head -50)` | — (без змін) | 610 | 610 | 153 | 153 | — |
+| `wc -l $(git ls-files \| head -50)` | — (unchanged) | 610 | 610 | 153 | 153 | — |
 | `git log --oneline -50 \| head -20` | `rtk git log --oneline -50 \| head -20` | 112 | 112 | 28 | 28 | 0.0% |
-| **Разом** | | 25467 | 22868 | 6370 | 5721 | **10.2%** |
+| **Total** | | 25467 | 22868 | 6370 | 5721 | **10.2%** |
 
 ### obot-mcp-catalog
 
-| Команда | Переписано на | Байти до | Байти після | Токени до | Токени після | Економія |
+| Command | Rewritten to | Bytes before | Bytes after | Tokens before | Tokens after | Savings |
 |---|---|---:|---:|---:|---:|---:|
 | `git status` | `rtk git status` | 100 | 49 | 25 | 12 | 52.0% |
 | `git log -20` | `rtk git log -20` | 10876 | 2298 | 2719 | 575 | 78.9% |
@@ -62,13 +62,13 @@ rtk пропускає їх як є.
 | `ls -la` | `rtk ls -la` | 5656 | 1401 | 1414 | 351 | 75.2% |
 | `find . -type f -not -path "./.git/*"` | `rtk find . -type f -not -path "./.git/*"` | 2300 | 890 | 575 | 223 | 61.2% |
 | `grep -rn "func\\|function" --include=*.go --include=*.js .` | `rtk grep -rn "func\\|function" --include=*.go --include=*.js .` | 0 | 0 | 0 | 0 | — |
-| `wc -l $(git ls-files \| head -50)` | — (без змін) | 1326 | 1326 | 332 | 332 | — |
+| `wc -l $(git ls-files \| head -50)` | — (unchanged) | 1326 | 1326 | 332 | 332 | — |
 | `git log --oneline -50 \| head -20` | `rtk git log --oneline -50 \| head -20` | 1135 | 1135 | 284 | 284 | 0.0% |
-| **Разом** | | 28886 | 13198 | 7224 | 3304 | **54.3%** |
+| **Total** | | 28886 | 13198 | 7224 | 3304 | **54.3%** |
 
 ### kubeconform
 
-| Команда | Переписано на | Байти до | Байти після | Токени до | Токени після | Економія |
+| Command | Rewritten to | Bytes before | Bytes after | Tokens before | Tokens after | Savings |
 |---|---|---:|---:|---:|---:|---:|
 | `git status` | `rtk git status` | 16305 | 13153 | 4077 | 3289 | 19.3% |
 | `git log -20` | `rtk git log -20` | 4780 | 2353 | 1195 | 589 | 50.7% |
@@ -80,18 +80,18 @@ rtk пропускає їх як є.
 | `ls -la` | `rtk ls -la` | 1572 | 450 | 393 | 113 | 71.2% |
 | `find . -type f -not -path "./.git/*"` | `rtk find . -type f -not -path "./.git/*"` | 13125 | 965 | 3282 | 242 | 92.6% |
 | `grep -rn "func\\|function" --include=*.go --include=*.js .` | `rtk grep -rn "func\\|function" --include=*.go --include=*.js .` | 179389 | 17268 | 44848 | 4317 | 90.4% |
-| `wc -l $(git ls-files \| head -50)` | — (без змін) | 1742 | 1742 | 436 | 436 | — |
+| `wc -l $(git ls-files \| head -50)` | — (unchanged) | 1742 | 1742 | 436 | 436 | — |
 | `git log --oneline -50 \| head -20` | `rtk git log --oneline -50 \| head -20` | 985 | 985 | 247 | 247 | 0.0% |
-| **Разом** | | 1413875 | 159764 | 353401 | 39946 | **88.7%** |
+| **Total** | | 1413875 | 159764 | 353401 | 39946 | **88.7%** |
 
-(У `compressor` на момент виміру було лише 3 коміти, тому `git diff HEAD~3` — це повідомлення про помилку.)
+(`compressor` had only 3 commits at the time, so `git diff HEAD~3` is an error message.)
 
-## Живий прогін у `claude -p`
+## Live run in `claude -p`
 
-Запуск: `claude -p --plugin-dir . --model haiku --output-format stream-json --verbose`
-з `COMPRESSOR_LOG=<файл>`, у чистому середовищі (`env -i HOME PATH TERM LANG`).
+Command: `claude -p --plugin-dir . --model haiku --output-format stream-json --verbose`
+with `COMPRESSOR_LOG=<file>`, in a clean environment (`env -i HOME PATH TERM LANG`).
 
-**Прогін 1** — `--allowedTools "Bash(git status:*)" "Bash(git log:*)" "Bash(ls:*)" "Bash(rtk:*)"`:
+**Run 1**: `--allowedTools "Bash(git status:*)" "Bash(git log:*)" "Bash(ls:*)" "Bash(rtk:*)"`:
 
 ```
 rtk: git status -> rtk git status
@@ -101,51 +101,51 @@ rtk: git status > /dev/null && echo done -> rtk git status > /dev/null && echo d
 rtk: skip (redirect to file): git log -3 > .../out.txt
 ```
 
-Усі чотири переписані команди виконались, агент отримав стиснений вивід rtk.
-Редирект у файл плагін не чіпав, і його заблокував звичайний механізм дозволів
-(запис поза робочою текою) — permission flow працює як без плагіна.
+All four rewritten commands ran and the agent received rtk's compressed output.
+The plugin left the file redirect alone, and the normal permission mechanism blocked it
+(a write outside the working directory): the permission flow works as it does without the plugin.
 
-**Прогін 2** — дозволено лише `Bash(git status:*)`, команди `git status` і `ls -la`:
-обидві переписано на `rtk ...` і обидві **відхилено** («This command requires approval»).
+**Run 2**: only `Bash(git status:*)` allowed, commands `git status` and `ls -la`:
+both were rewritten to `rtk ...` and both were **rejected** ("This command requires approval").
 
-**Прогін 3** — без плагіна і без жодних правил: `ls -la` і `git diff --stat` виконались без запиту,
-бо Claude Code сам дозволяє команди лише для читання.
+**Run 3**: no plugin and no rules: `ls -la` and `git diff --stat` ran without a prompt,
+because Claude Code auto-approves read-only commands itself.
 
-## Знахідка: дозволи перевіряються для переписаної команди
+## Finding: permissions are checked against the rewritten command
 
-Claude Code застосовує правила дозволів до команди **після** `updatedInput`. Тому:
+Claude Code applies permission rules to the command **after** `updatedInput`. So:
 
-- правило `Bash(git status:*)` не покриває `rtk git status`;
-- вбудоване автодозволення команд лише для читання (`ls`, `git diff`, ...) не впізнає `rtk ...`.
+- a `Bash(git status:*)` rule does not cover `rtk git status`;
+- the built-in auto-approval of read-only commands (`ls`, `git diff`, ...) does not recognise `rtk ...`.
 
-Поточна поведінка (без `permissionDecision`) безпечна, але на практиці кожна переписана команда
-вимагатиме підтвердження. Додати `Bash(rtk:*)` у дозволи — погана ідея: `rtk run` / `rtk proxy`
-виконують довільні команди.
+The behaviour at that point (no `permissionDecision`) was safe, but in practice every rewritten command
+needed confirmation. Adding `Bash(rtk:*)` to permissions is a bad idea: `rtk run` / `rtk proxy`
+execute arbitrary commands.
 
-Як це робить власний хук rtk (`rtk hook claude`): `rtk rewrite` читає правила з settings.json
-(користувача і проєкту) і повертає код 0, якщо оригінал **повністю** дозволено (усі частини ланцюжка),
-3 — якщо правила нема або воно `ask`, 2 — якщо заборонено. На 0 хук rtk ставить
-`permissionDecision: "allow"`, на 3 — нічого, на 2 — не переписує. Перевірено:
-`git status && rm -rf zzz` → 3, `git status && git push` (push заборонено) → 2,
-`git status && git status` → 0. Правил із `--allowedTools` і вбудованого автодозволення rtk не бачить.
+How rtk's own hook (`rtk hook claude`) handles it: `rtk rewrite` reads the rules from settings.json
+(user and project) and exits 0 if the original is **fully** allowed (every part of a chain),
+3 if there is no rule or it is `ask`, and 2 if it is denied. On 0 rtk's hook sets
+`permissionDecision: "allow"`, on 3 nothing, on 2 it does not rewrite. Verified:
+`git status && rm -rf zzz` → 3, `git status && git push` (push denied) → 2,
+`git status && git status` → 0. rtk cannot see rules from `--allowedTools` or the built-in auto-approval.
 
-## Рішення: варіант A (як у rtk)
+## Decision: option A (same as rtk)
 
-Плагін ставить `permissionDecision: "allow"` **лише** коли `rtk rewrite` повернув 0, тобто правила
-з settings.json уже дозволяють оригінальну команду повністю. На 3 рішення не ставиться (звичайний запит),
-на 2 команда не переписується, і заборона спрацьовує на оригіналі. `rtk rewrite` запускається в `cwd`
-з payload хука, щоб бачити `.claude/settings.json` проєкту. Права плагін не розширює.
+The plugin sets `permissionDecision: "allow"` **only** when `rtk rewrite` exits 0, that is, when the settings.json
+rules already allow the whole original command. On 3 no decision is set (a normal prompt);
+on 2 the command is not rewritten and the deny rule applies to the original. `rtk rewrite` runs in the `cwd`
+from the hook payload so it sees the project's `.claude/settings.json`. The plugin never widens permissions.
 
-Живий прогін (тимчасовий клон, `.claude/settings.json`: allow `git status`, `git log`; deny `git push`;
-без `--allowedTools`):
+Live run (temporary clone, `.claude/settings.json`: allow `git status`, `git log`; deny `git push`;
+no `--allowedTools`):
 
 ```
-rtk: git status -> rtk git status (allow)    виконано без запиту
-rtk: git log -3 -> rtk git log -3 (allow)    виконано без запиту
-rtk: ls -la -> rtk ls -la                    "requires approval" (правила нема)
-git push                                     не переписано, відхилено deny-правилом
+rtk: git status -> rtk git status (allow)    ran without a prompt
+rtk: git log -3 -> rtk git log -3 (allow)    ran without a prompt
+rtk: ls -la -> rtk ls -la                    "requires approval" (no rule)
+git push                                     not rewritten, rejected by the deny rule
 ```
 
-Обмеження: команди, які Claude Code дозволяє сам (лише читання: `ls`, `git diff`, ...), і правила з
-`--allowedTools` rtk не бачить, тож для них після переписування буде запит. Щоб їх стискати без
-запитів, додайте явні allow-правила для оригінальних команд, наприклад `Bash(ls:*)`, `Bash(git diff:*)`.
+Limitation: commands Claude Code approves by itself (read-only: `ls`, `git diff`, ...) and rules from
+`--allowedTools` are invisible to rtk, so after rewriting they prompt. To compress them without
+prompts, add explicit allow rules for the original commands, for example `Bash(ls:*)`, `Bash(git diff:*)`.

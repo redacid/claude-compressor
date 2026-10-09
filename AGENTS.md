@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Instructions for AI coding agents working on this repository (Claude Code, Codex, Cursor, Gemini, Copilot, ...).
-Human docs are in Ukrainian: [README.md](README.md).
+Human docs: [README.md](README.md).
 
 ## Purpose
 
@@ -47,7 +47,7 @@ hook payload's `cwd` so rtk sees the project's `.claude/settings.json`. Exit cod
 | `scripts/changelog.js`, `scripts/release-check.sh`, `scripts/ci/` | release notes from PRs merged into main, tag checks, CI tool install, Gitea release upload |
 | `.github/workflows/`, `.gitea/workflows/` | `ci.yml` (any branch push: lint, test, validate), `release.yml` (`vX.Y.Z` tag on main: checks, build, release) — keep both forges in sync |
 | `test/` | `node:test`; `fixtures/bin/fake-rtk` emulates rtk exit codes; `*.integration.test.js` use real rtk, skipped if absent |
-| `docs/` | `benchmark.md` (results), `adding-compressor.md` (compressor API) — Ukrainian |
+| `docs/` | `benchmark.md` (results), `adding-compressor.md` (compressor API) |
 
 Env vars: `COMPRESSOR_DISABLE`, `COMPRESSOR_COMPRESSORS` (comma list, empty = none), `COMPRESSOR_CONFIG`,
 `COMPRESSOR_RTK_BIN`, `COMPRESSOR_LOG`, `COMPRESSOR_DEBUG`.
@@ -89,7 +89,7 @@ npm scripts are the source of truth; `make` wraps them (`make help` lists all ta
 - Code style: CommonJS, `'use strict'`, 2-space indent, single quotes, short comments that explain *why*.
 - Commits: one logical step per commit; short imperative English subject (`rtk adapter`,
   `Preserve user allow rules for rewritten commands`), wrapped body explaining what and why.
-- Human-facing docs (README, `docs/`) are written in Ukrainian; this file and code comments in English.
+- All docs (README, `docs/`, this file) and code comments are in English.
 
 ## Gotchas
 

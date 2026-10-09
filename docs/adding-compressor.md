@@ -1,51 +1,51 @@
-# Як додати компресор
+# Adding a compressor
 
-Компресор — це один модуль у `src/compressors/<name>.js` плюс один рядок у `config/compressors.json`.
-Диспетчер опитує компресори в порядку з конфігу. Перший, що повернув нову команду, виграє, решта не запускаються.
+A compressor is one module in `src/compressors/<name>.js` plus one entry in `config/compressors.json`.
+The dispatcher asks compressors in config order. The first one that returns a new command wins; the rest do not run.
 
-## Інтерфейс
+## Interface
 
 ```js
 module.exports = {
-  name: 'mytool',                  // збігається з ім'ям файлу: [a-z0-9][a-z0-9_-]*
+  name: 'mytool',                  // matches the file name: [a-z0-9][a-z0-9_-]*
 
-  isAvailable() {                  // чи є інструмент у системі; кешуйте результат
+  isAvailable() {                  // is the tool installed; cache the result
     return true;
   },
 
-  matches(command) {               // дешевий фільтр: чи варто взагалі пробувати
+  matches(command) {               // cheap filter: is it worth trying at all
     return /^\s*terraform plan\b/.test(command);
   },
 
-  rewrite(command, { cwd }) {      // cwd — робоча тека сесії Claude Code
-    return `mytool ${command}`;    // або { command, allow }, або null, щоб нічого не міняти
+  rewrite(command, { cwd }) {      // cwd is the Claude Code session's working directory
+    return `mytool ${command}`;    // or { command, allow }, or null to leave it unchanged
   },
 };
 ```
 
-Правила:
+Rules:
 
-- `rewrite` повертає рядок, `{ command, allow }` або `null`. Порожній рядок і незмінна команда означають «без змін».
-- `allow: true` ставте **лише** тоді, коли достеменно відомо, що правила користувача вже дозволяють
-  оригінальну команду повністю. Плагін тоді поставить `permissionDecision: "allow"`. Якщо сумніваєтеся,
-  не ставте: Claude Code просто спитає дозвіл.
-- Виняток у будь-якому методі не ламає хук: компресор пропускається, команда йде далі.
-- Хук має таймаут 10 с на весь ланцюжок, тож зовнішні процеси запускайте з власним таймаутом (див. `rtk.js`).
-- Для розбору команди використовуйте `src/shell.js`: `maskQuotes`, `segments`, `redirectsToFile`.
-  Не переписуйте heredoc, підстановки, редиректи у файл та інтерактивні команди.
-- Налагоджувальний вивід — через `debug()` з `src/log.js`, бо stdout зайнятий відповіддю хука.
+- `rewrite` returns a string, `{ command, allow }` or `null`. An empty string or an unchanged command means "no change".
+- Set `allow: true` **only** when you know for certain that the user's rules already allow the whole original
+  command. The plugin then sets `permissionDecision: "allow"`. When in doubt, leave it out: Claude Code will
+  simply ask for permission.
+- An exception in any method does not break the hook: the compressor is skipped and the command moves on.
+- The hook has a 10 s timeout for the whole chain, so run external processes with their own timeout (see `rtk.js`).
+- Use `src/shell.js` to inspect the command: `maskQuotes`, `segments`, `redirectsToFile`.
+  Do not rewrite heredocs, substitutions, redirects to files or interactive commands.
+- Debug output goes through `debug()` from `src/log.js`, because stdout carries the hook's answer.
 
-## Увімкнення
+## Enabling
 
 ```json
 { "compressors": ["mytool", "rtk"] }
 ```
 
-Порядок важливий: вужчий компресор ставте перед rtk. Перевірити без редагування конфігу можна так:
+Order matters: put a narrower compressor before rtk. To try it without editing the config:
 `COMPRESSOR_COMPRESSORS=mytool,rtk make hook-test CMD="terraform plan"`.
 
-## Тести
+## Tests
 
-Додайте `test/<name>.test.js` на `node:test`. Зовнішній інструмент підмініть скриптом у `test/fixtures/bin/`,
-як `fake-rtk`, а тести зі справжнім бінарником робіть окремим файлом `*.integration.test.js` зі `skip`,
-якщо інструмента нема. Потім `make check` і `make bench`.
+Add `test/<name>.test.js` using `node:test`. Replace the external tool with a script in `test/fixtures/bin/`,
+like `fake-rtk`, and put tests against the real binary in a separate `*.integration.test.js` file that is skipped
+when the tool is missing. Then run `make check` and `make bench`.

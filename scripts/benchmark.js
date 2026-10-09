@@ -79,16 +79,16 @@ function printText(dir, rows) {
 
 function printMd(dir, rows) {
   console.log(`\n### ${path.basename(dir)}\n`);
-  console.log('| Команда | Переписано на | Байти до | Байти після | Токени до | Токени після | Економія |');
+  console.log('| Command | Rewritten to | Bytes before | Bytes after | Tokens before | Tokens after | Savings |');
   console.log('|---|---|---:|---:|---:|---:|---:|');
   for (const r of rows) {
     const cmd = `\`${r.command.replace(/\|/g, '\\|')}\``;
-    const rw = r.rewritten ? `\`${r.rewritten.replace(/\|/g, '\\|')}\`` : '— (без змін)';
+    const rw = r.rewritten ? `\`${r.rewritten.replace(/\|/g, '\\|')}\`` : '— (unchanged)';
     const save = r.rewritten ? pct(r.raw.tokens, r.out.tokens) : '—';
     console.log(`| ${cmd} | ${rw} | ${r.raw.bytes} | ${r.out.bytes} | ${r.raw.tokens} | ${r.out.tokens} | ${save} |`);
   }
   const t = totals(rows);
-  console.log(`| **Разом** | | ${t.raw.bytes} | ${t.out.bytes} | ${t.raw.tokens} | ${t.out.tokens} | **${pct(t.raw.tokens, t.out.tokens)}** |`);
+  console.log(`| **Total** | | ${t.raw.bytes} | ${t.out.bytes} | ${t.raw.tokens} | ${t.out.tokens} | **${pct(t.raw.tokens, t.out.tokens)}** |`);
 }
 
 function main(argv) {

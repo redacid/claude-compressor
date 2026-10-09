@@ -1,73 +1,90 @@
 # compressor
 
-Claude Code плагін, що автоматично стискає вивід shell-команд агента через rtk, з архітектурою для інших компресорів.
+A Claude Code plugin that automatically compresses the output of the agent's shell commands through rtk, built so
+other compressors can be plugged in.
 
-Хук `PreToolUse` перехоплює кожен виклик інструмента Bash і, якщо команду можна стиснути,
-непомітно для агента переписує її: `git status` → `rtk git status`, `cd x && git diff` → `cd x && rtk git diff`.
-Агент отримує той самий результат, але в рази коротший. На великих репозиторіях це 50–90% токенів
-виводу (див. [вимір ефекту](docs/benchmark.md)).
+A `PreToolUse` hook intercepts every Bash tool call and, when the command can be compressed, rewrites it without the
+agent noticing: `git status` → `rtk git status`, `cd x && git diff` → `cd x && rtk git diff`.
+The agent gets the same result, only several times shorter. On large repositories that is 50–90% of output tokens
+(see [benchmark](docs/benchmark.md)).
 
-## Вимоги
+## Requirements
 
-- Claude Code з підтримкою плагінів.
-- Node.js ≥ 18 (лише вбудовані модулі, без npm-залежностей).
-- [rtk](https://github.com/rtk-ai/rtk) у `PATH` (перевірено з 0.49.0). Без rtk плагін нічого не робить.
+- Claude Code with plugin support.
+- Node.js ≥ 18 (built-in modules only, no npm dependencies).
+- [rtk](https://github.com/rtk-ai/rtk) on `PATH` (tested with 0.49.0). Without rtk the plugin does nothing.
 
-Не вмикайте одночасно глобальний хук самого rtk (`rtk init -g`): команди переписувалися б двічі.
+Do not enable rtk's own global hook (`rtk init -g`) at the same time: commands would be rewritten twice.
 
-## Встановлення
+## Installation
 
-З локальної копії:
+### From GitHub
+
+```bash
+claude plugin marketplace add redacid/claude-compressor
+claude plugin install compressor@redacid
+```
+
+Or inside Claude Code: `/plugin marketplace add redacid/claude-compressor`, then `/plugin install compressor@redacid`.
+
+- Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.0'`.
+- Update: `claude plugin marketplace update redacid && claude plugin update compressor@redacid`.
+- Offer the plugin to everyone working in a project: add `--scope project` to `marketplace add`; the marketplace is
+  then recorded in that project's `.claude/settings.json`.
+- Release archives (zip, sha256, changelog) are on the [releases page](https://github.com/redacid/claude-compressor/releases).
+
+### From a local checkout
 
 ```bash
 make install
 ```
 
-Це те саме, що:
+This is the same as:
 
 ```bash
 claude plugin marketplace add /path/to/compressor
 claude plugin install compressor@redacid
 ```
 
-Або всередині Claude Code: `/plugin marketplace add /path/to/compressor`, потім `/plugin install compressor@redacid`.
-Видалити: `make uninstall`. Спробувати без встановлення: `make run` (це `claude --plugin-dir .`).
+Both sources register a marketplace named `redacid`, so remove one before adding the other
+(`make uninstall` or `claude plugin marketplace remove redacid`).
+Try it without installing: `make run` (that is `claude --plugin-dir .`).
 
-## Як це працює
+## How it works
 
 ```
-Bash tool call ─► hooks/dispatch.js ─► src/dispatcher.js ─► компресори з конфігу по порядку
-                                                            перший, що переписав команду, виграє
-                       ◄─ updatedInput.command (+ allow, якщо оригінал уже дозволено)
+Bash tool call ─► hooks/dispatch.js ─► src/dispatcher.js ─► compressors from the config, in order
+                                                            the first one that rewrites the command wins
+                       ◄─ updatedInput.command (+ allow if the original is already allowed)
 ```
 
-- Компресори лежать у `src/compressors/`, вмикаються і впорядковуються в `config/compressors.json`.
-- Будь-яка помилка означає, що хук нічого не виводить і команда виконується як є (fail open).
-- Адаптер rtk (`src/compressors/rtk.js`) питає саме rtk (`rtk rewrite`), чи має команда стислий відповідник,
-  і додає власні запобіжники. Не переписуються:
-  - команди, що вже використовують `rtk`;
-  - heredoc, `$(...)` і бектики;
-  - редирект у файл (`2>&1` і `/dev/null` дозволені) і `tee`, щоб у файл не потрапив стиснений вивід;
-  - інтерактивні команди: `vim`, `less`, `ssh`, `git add -p`, `git rebase -i`, `docker/kubectl exec -it`;
-  - режими стеження: `tail -f`, `kubectl logs -f`.
+- Compressors live in `src/compressors/` and are enabled and ordered in `config/compressors.json`.
+- Any error means the hook prints nothing and the command runs as is (fail open).
+- The rtk adapter (`src/compressors/rtk.js`) asks rtk itself (`rtk rewrite`) whether the command has a compact
+  equivalent, and adds its own guards. These are not rewritten:
+  - commands that already use `rtk`;
+  - heredocs, `$(...)` and backticks;
+  - redirects to a file (`2>&1` and `/dev/null` are fine) and `tee`, so compressed output never lands in a file;
+  - interactive commands: `vim`, `less`, `ssh`, `git add -p`, `git rebase -i`, `docker/kubectl exec -it`;
+  - follow modes: `tail -f`, `kubectl logs -f`.
 
-Стиснення rtk **втратне**: великий diff обрізається з підказкою, як отримати повний
-(`rtk git diff --no-compact`), у `git log` з'являються маркери `[+N lines omitted]`.
+rtk compression is **lossy**: a large diff is truncated with a hint on how to get the full one
+(`rtk git diff --no-compact`), and `git log` shows `[+N lines omitted]` markers.
 
-## Дозволи
+## Permissions
 
-Claude Code перевіряє правила дозволів для **переписаної** команди, тож правило `Bash(git status:*)` саме по собі
-не покриває `rtk git status`. Плагін робить так само, як власний хук rtk:
+Claude Code checks permission rules against the **rewritten** command, so a `Bash(git status:*)` rule on its own
+does not cover `rtk git status`. The plugin does what rtk's own hook does:
 
-| `rtk rewrite` | Значення | Що робить плагін |
+| `rtk rewrite` | Meaning | What the plugin does |
 |---|---|---|
-| код 0 | ваші правила в settings.json уже дозволяють оригінал повністю (усі частини ланцюжка) | переписує і ставить `permissionDecision: "allow"` |
-| код 3 | правила нема або воно `ask` | переписує, рішення лишає Claude Code (буде звичайний запит) |
-| код 2 | оригінал заборонено | не переписує, deny-правило спрацьовує на оригіналі |
+| exit 0 | your settings.json rules already allow the whole original (every part of a chain) | rewrites and sets `permissionDecision: "allow"` |
+| exit 3 | no rule, or an `ask` rule | rewrites and leaves the decision to Claude Code (a normal prompt) |
+| exit 2 | the original is denied | does not rewrite; the deny rule applies to the original |
 
-Права плагін не розширює. rtk читає `~/.claude/settings.json` і `.claude/settings.json` проєкту,
-але **не бачить** правил із `--allowedTools` і вбудованого автодозволу Claude Code для команд лише для читання
-(`ls`, `git diff`, ...). Щоб такі команди стискалися без запитів, додайте явні правила для **оригіналів**:
+The plugin never widens permissions. rtk reads `~/.claude/settings.json` and the project's `.claude/settings.json`,
+but it **cannot see** rules from `--allowedTools` or Claude Code's built-in auto-approval of read-only commands
+(`ls`, `git diff`, ...). To compress those without prompts, add explicit rules for the **originals**:
 
 ```json
 {
@@ -77,97 +94,99 @@ Claude Code перевіряє правила дозволів для **пере
 }
 ```
 
-Не додавайте `Bash(rtk:*)`: `rtk run` і `rtk proxy` виконують довільні команди.
+Do not add `Bash(rtk:*)`: `rtk run` and `rtk proxy` execute arbitrary commands.
 
-## Налаштування
+## Configuration
 
-Порядок застосування (пізніше перекриває раннє):
+Order of precedence (later overrides earlier):
 
-1. `config/compressors.json` у плагіні: `{ "compressors": ["rtk"] }`.
-2. Користувацький конфіг `~/.config/compressor/config.json` (або `$XDG_CONFIG_HOME/compressor/config.json`):
+1. `config/compressors.json` in the plugin: `{ "compressors": ["rtk"] }`.
+2. User config `~/.config/compressor/config.json` (or `$XDG_CONFIG_HOME/compressor/config.json`):
    `{ "enabled": true, "compressors": ["rtk"] }`.
-3. Змінні середовища.
+3. Environment variables.
 
-| Змінна | Що робить |
+| Variable | Effect |
 |---|---|
-| `COMPRESSOR_DISABLE=1` | вимкнути плагін повністю |
-| `COMPRESSOR_COMPRESSORS=rtk,foo` | список і порядок компресорів (порожньо = жодного) |
-| `COMPRESSOR_CONFIG=/path.json` | інший шлях до користувацького конфігу |
-| `COMPRESSOR_RTK_BIN=/path/rtk` | явний шлях до rtk |
-| `COMPRESSOR_LOG=/path.log` | дописувати рішення хука у файл |
-| `COMPRESSOR_DEBUG=1` | писати рішення хука в stderr |
+| `COMPRESSOR_DISABLE=1` | turn the plugin off entirely |
+| `COMPRESSOR_COMPRESSORS=rtk,foo` | list and order of compressors (empty = none) |
+| `COMPRESSOR_CONFIG=/path.json` | another path for the user config |
+| `COMPRESSOR_RTK_BIN=/path/rtk` | explicit path to rtk |
+| `COMPRESSOR_LOG=/path.log` | append hook decisions to a file |
+| `COMPRESSOR_DEBUG=1` | write hook decisions to stderr |
 
-Змінні середовища треба задати для процесу `claude`, наприклад `COMPRESSOR_DISABLE=1 claude`.
+Environment variables must be set for the `claude` process, for example `COMPRESSOR_DISABLE=1 claude`.
 
-## Розробка
+## Development
 
 ```
 .claude-plugin/   plugin.json, marketplace.json
-hooks/            hooks.json, dispatch.js (точка входу хука)
+hooks/            hooks.json, dispatch.js (hook entry point)
 src/              dispatcher.js, registry.js, config.js, shell.js, log.js
-src/compressors/  rtk.js (адаптери компресорів)
-config/           compressors.json (увімкнені компресори та порядок)
-scripts/          benchmark.js
-test/             node:test, фейковий rtk у test/fixtures/bin
+src/compressors/  rtk.js (compressor adapters)
+config/           compressors.json (enabled compressors and their order)
+scripts/          benchmark.js, changelog.js, release-check.sh, ci/
+test/             node:test, fake rtk in test/fixtures/bin
 docs/             benchmark.md, adding-compressor.md
-AGENTS.md         інструкції для AI-агентів (англійською; .claude/CLAUDE.md імпортує його)
+AGENTS.md         instructions for AI agents (.claude/CLAUDE.md imports it)
 ```
 
-| Ціль | Що робить |
+| Target | What it does |
 |---|---|
-| `make` / `make help` | список цілей |
-| `make check-deps` | перевірити node, git, rtk |
-| `make lint` | `node --check` усіх JS і перевірка JSON |
-| `make test` | усі тести (`npm test`), інтеграційні зі справжнім rtk, якщо він є |
-| `make test-unit` | лише юніт-тести |
-| `make validate` | `claude plugin validate` для plugin.json і marketplace.json |
+| `make` / `make help` | list targets |
+| `make check-deps` | check node, git, rtk |
+| `make lint` | `node --check` on all JS and JSON validation |
+| `make test` | all tests (`npm test`), integration tests with real rtk when it is installed |
+| `make test-unit` | unit tests only |
+| `make validate` | `claude plugin validate` on plugin.json and marketplace.json |
 | `make check` | lint + test + validate |
-| `make bench` / `make bench-md` | вимір економії, `BENCH_REPOS="dir1 dir2"` |
-| `make build` | check, потім zip плагіна в `dist/` (з `HEAD`) |
-| `make run` | `claude --plugin-dir .` з логом у `compressor.log` |
-| `make run-print` | один прогін `claude -p`, `PROMPT="..."` |
-| `make hook-test` | прогнати хук на команді, `CMD="git log -5"` |
-| `make install` / `make update` / `make uninstall` | локальний marketplace і плагін |
-| `make package` | zip плагіна в `dist/` з `HEAD` і файл sha256, без перевірок |
-| `make release-check TAG=v0.2.0` | перевірити тег: формат, коміт у main, версії в маніфестах |
-| `make changelog TAG=v0.2.0` | нотатки релізу з PR, злитих у main |
-| `make clean` | прибрати `dist/` і логи |
+| `make bench` / `make bench-md` | measure savings, `BENCH_REPOS="dir1 dir2"` |
+| `make build` | check, then zip the plugin into `dist/` (from `HEAD`) |
+| `make package` | zip the plugin from `HEAD` into `dist/` with a sha256 file, no checks |
+| `make run` | `claude --plugin-dir .` with a log in `compressor.log` |
+| `make run-print` | one `claude -p` run, `PROMPT="..."` |
+| `make hook-test` | run the hook on a command, `CMD="git log -5"` |
+| `make install` / `make update` / `make uninstall` | local marketplace and plugin |
+| `make release-check TAG=v0.2.0` | check a tag: format, commit on main, manifest versions |
+| `make changelog TAG=v0.2.0` | release notes from PRs merged into main |
+| `make clean` | remove `dist/` and logs |
 
-Як додати свій компресор: [docs/adding-compressor.md](docs/adding-compressor.md).
-Інструкції для AI-агентів, що працюють із репозиторієм: [AGENTS.md](AGENTS.md) (Claude Code читає його через `.claude/CLAUDE.md`).
+Adding your own compressor: [docs/adding-compressor.md](docs/adding-compressor.md).
+Instructions for AI agents working on the repository: [AGENTS.md](AGENTS.md) (Claude Code reads it through `.claude/CLAUDE.md`).
 
 ## CI/CD
 
-Однакові пайплайни для GitHub (`.github/workflows/`) і Gitea (`.gitea/workflows/`):
+The same pipelines for GitHub (`.github/workflows/`) and Gitea (`.gitea/workflows/`):
 
-- **Пуш у будь-яку гілку** (`ci.yml`): `make lint`, `make test` зі справжнім rtk, `make validate`.
-- **Тег `vX.Y.Z`** (`release.yml`): тег має стояти на коміті з `main`, а його версія має збігатися з `version`
-  у plugin.json, marketplace.json і package.json, інакше реліз падає. Далі lint, тести, валідація, `make package`
-  і реліз з архівом, sha256 та `CHANGELOG.md`.
-- **Changelog** формується з PR, злитих у `main` після попереднього тегу (merge або squash; rebase-merge
-  не лишає номера PR, тому такі PR не потраплять у список). Прямі коміти в `main` у changelog не йдуть.
+- **Push to any branch** (`ci.yml`): `make lint`, `make test` with real rtk, `make validate`.
+- **`vX.Y.Z` tag** (`release.yml`): the tag must point at a commit on `main` and its version must match `version`
+  in plugin.json, marketplace.json and package.json, otherwise the release fails. Then lint, tests, validation,
+  `make package` and a release with the archive, its sha256 and `CHANGELOG.md`.
+- **The changelog** is built from PRs merged into `main` since the previous tag (merge or squash; a rebase merge
+  leaves no PR number, so such PRs are not listed). Direct commits to `main` are not included.
 
-Як випустити реліз: PR з новою версією в маніфестах → merge у `main` → `git tag v0.2.0 origin/main && git push origin v0.2.0`.
+Cutting a release: a PR bumping the version in the manifests → merge into `main` →
+`git tag v0.2.0 origin/main && git push origin v0.2.0`.
 
-Заборонити теги поза `main` на рівні сервера можна лише в налаштуваннях репозиторію (GitHub: ruleset для тегів
-`v*`; Gitea: protected tags). CI це перевіряє, але сам тег уже буде створено. Для Gitea потрібен раннер з міткою
-`ubuntu-latest`; якщо токен задачі не може створювати релізи, додай секрет `RELEASE_TOKEN`.
+Tags outside `main` can only be blocked server-side, in the repository settings (GitHub: a tag ruleset for `v*`;
+Gitea: protected tags). CI checks it, but the tag will already exist. Gitea needs a runner with the `ubuntu-latest`
+label; if the job token cannot create releases, add a `RELEASE_TOKEN` secret.
 
-## Вимір ефекту
+## Benchmark
 
-`make bench` на трьох локальних репозиторіях (токени ≈ символи / 4):
+`make bench` on three local repositories (tokens ≈ characters / 4):
 
-| Репозиторій | До | Після | Економія |
+| Repository | Before | After | Savings |
 |---|---:|---:|---:|
-| compressor (малий) | 6370 | 5721 | 10% |
+| compressor (small) | 6370 | 5721 | 10% |
 | obot-mcp-catalog | 7224 | 3304 | 54% |
 | kubeconform | 353401 | 39946 | 89% |
 
-Деталі по командах і результати живого прогону в `claude -p`: [docs/benchmark.md](docs/benchmark.md).
+Per-command details and the live `claude -p` runs: [docs/benchmark.md](docs/benchmark.md).
 
-## План розробки
+## Roadmap
 
-1. ✅ Каркас плагіна й архітектура компресорів: plugin.json, хук PreToolUse для Bash, диспетчер і реєстр компресорів.
-2. ✅ Адаптер rtk: перевірка наявності rtk, переписування підтримуваних команд, обробка пайпів, heredoc і ланцюжків.
-3. ✅ Тести й вимір ефекту: юніт-тести переписування, прогін у claude -p, порівняння обсягу виводу.
-4. ✅ Пакування: marketplace.json, README, інструкція з додавання компресора.
+1. ✅ Plugin skeleton and compressor architecture: plugin.json, PreToolUse hook for Bash, dispatcher and registry.
+2. ✅ rtk adapter: rtk detection, rewriting supported commands, handling pipes, heredocs and chains.
+3. ✅ Tests and benchmark: rewrite unit tests, a `claude -p` run, output size comparison.
+4. ✅ Packaging: marketplace.json, README, guide for adding a compressor.
+5. ✅ CI/CD for GitHub and Gitea, releases with an automatic changelog.
