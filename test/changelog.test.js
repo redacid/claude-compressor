@@ -30,3 +30,9 @@ test('render lists pull requests and handles empty ranges', () => {
   assert.equal(render('v0.1.0', null, []), '## v0.1.0\n\nInitial release.\n');
   assert.match(render('v0.2.0', 'v0.1.0', []), /No pull requests merged since v0.1.0/);
 });
+
+test('render appends the commit list before the footer', () => {
+  const out = render('v0.2.0', 'v0.1.0', [], [{ hash: 'abc1234', subject: 'Fix x' }]);
+  assert.match(out, /### Commits\n\n- Fix x \(abc1234\)\n\nChanges since v0.1.0\./);
+  assert.doesNotMatch(render('v0.2.0', 'v0.1.0', []), /### Commits/);
+});
