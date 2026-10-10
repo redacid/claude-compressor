@@ -54,12 +54,27 @@ function commits(range) {
     });
 }
 
-function render(tag, prev, prs) {
+// Every non-merge commit in range, including those inside pull requests.
+function allCommits(range) {
+  return git(['log', '--no-merges', '--format=%h%x1f%s', range])
+    .split('\n')
+    .filter(Boolean)
+    .map((l) => {
+      const [hash, subject] = l.split('\x1f');
+      return { hash, subject };
+    });
+}
+
+function render(tag, prev, prs, list = []) {
   const lines = [`## ${tag}`, ''];
   if (prs.length === 0) {
     lines.push(prev ? `No pull requests merged since ${prev}.` : 'Initial release.');
   } else {
     for (const pr of prs) lines.push(`- ${pr.title} (#${pr.number})`);
+  }
+  if (list.length) {
+    lines.push('', '### Commits', '');
+    for (const c of list) lines.push(`- ${c.subject} (${c.hash})`);
   }
   if (prev) lines.push('', `Changes since ${prev}.`);
   return lines.join('\n') + '\n';
@@ -72,10 +87,11 @@ function main(argv) {
     return 2;
   }
   const prev = prevArg || previousTag(tag);
-  const prs = commits(prev ? `${prev}..${tag}` : tag)
+  const range = prev ? `${prev}..${tag}` : tag;
+  const prs = commits(range)
     .map((c) => parsePullRequest(c.subject, c.body))
     .filter(Boolean);
-  process.stdout.write(render(tag, prev, prs));
+  process.stdout.write(render(tag, prev, prs, allCommits(range)));
   return 0;
 }
 
