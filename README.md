@@ -29,6 +29,8 @@ Or inside Claude Code: `/plugin marketplace add redacid/claude-compressor`, then
 
 - Pin a release instead of following `main`: `claude plugin marketplace add 'redacid/claude-compressor#v0.1.2'`.
 - Update: `claude plugin marketplace update redacid && claude plugin update compressor@redacid`.
+  Claude Code and the desktop app do not refresh third-party marketplaces on their own, so until you run this the
+  plugin list keeps showing the old version as the latest. Restart Claude afterwards.
 - Offer the plugin to everyone working in a project: add `--scope project` to `marketplace add`; the marketplace is
   then recorded in that project's `.claude/settings.json`.
 - Release archives (zip, sha256, changelog) are on the [releases page](https://github.com/redacid/claude-compressor/releases).

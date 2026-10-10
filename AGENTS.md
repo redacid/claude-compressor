@@ -64,6 +64,8 @@ npm scripts are the source of truth; `make` wraps them (`make help` lists all ta
 - Release: `make bump V=X.Y.Z` (or `V=patch|minor|major`) sets the version everywhere; commit it via a PR, merge to main, tag `vX.Y.Z` on main.
   `make release-check TAG=…` and `make changelog TAG=…` run what CI runs. PRs must be merged or squashed (not rebased)
   so each one leaves a `(#N)` commit on main for the changelog.
+- After a release, installed copies only see it after `claude plugin marketplace update redacid && claude plugin update compressor@redacid`
+  (third-party marketplaces are not refreshed automatically).
 
 ## Hard rules
 
